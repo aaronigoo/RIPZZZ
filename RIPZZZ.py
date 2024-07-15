@@ -4,9 +4,30 @@ from datetime import datetime
 import atexit
 import subprocess
 
+#Getting ZZZ Directory
+
+# Get the directory path of the current script
+script_dir = os.path.dirname(__file__)
+
+# Specify the filename you want to access (example: 'example.txt')
+filename = 'ZenlessZoneZero.exe'
+
+# Construct the full path to the file
+file_path = os.path.join(script_dir, filename)
+
+# Check if the file exists before accessing it
+if os.path.exists(file_path):
+    # Open the file and read its contents (example: read mode 'r')
+    with open(file_path, 'r') as file:
+        file_contents = file.read()
+        print(f"Contents of '{filename}':\n{file_contents}")
+else:
+    print(f"File '{filename}' not found in directory: {script_dir}")
+
+#End
 #Checking if there's a remote file
 
-def checkRemote(word_to_check, directory):
+def checkRemote(RemoteFile, directory):
     found_filenames = []
     for filename in os.listdir(directory):
         if os.path.isfile(os.path.join(directory, filename)):
@@ -17,16 +38,16 @@ def checkRemote(word_to_check, directory):
 # Example usage:
 if __name__ == "__main__":
     directory_path = '/path/to/your/directory'  # Replace with your directory path
-    word_to_check = "report"  # Change this to the word you want to check
+    RemoteFile = "Remote"  # Change this to the word you want to check
     
-    found_files = checkRemote(word_to_check, directory_path)
+    found_files = checkRemote(RemoteFile, directory_path)
     
     if found_files:
-        print(f"Files containing '{word_to_check}' in {directory_path}:")
+        print(f"Files containing '{RemoteFile}' in {directory_path}:")
         for filename in found_files:
             print(filename)
     else:
-        print(f"No files found containing '{word_to_check}' in {directory_path}.")
+        print(f"No files found containing '{RemoteFile}' in {directory_path}.")
 
 #End
 #Download from Github
@@ -64,7 +85,7 @@ if __name__ == "__main__":
 
 def runZZZ():
     # Replace with the command or application you want to run
-    subprocess.run(["/path/to/your/application"])  # Example command to run an application
+    subprocess.run([file_path])  # Example command to run an application
 
 # Registering the function to run before exit
 atexit.register(runZZZ)
