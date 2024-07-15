@@ -28,10 +28,10 @@ if __name__ == "__main__":
     else:
         print(f"No files found containing '{word_to_check}' in {directory_path}.")
 
+#End
 #Download from Github
 
-
-def download_file_from_github(url, save_path):
+def downloadPersistFiles(url, save_path):
     response = requests.get(url)
     if response.status_code == 200:
         # Check if local file exists and get its last modified timestamp
@@ -57,9 +57,9 @@ if __name__ == "__main__":
     github_url = 'https://raw.githubusercontent.com/username/repository/branch/path/to/file'
     save_path = '/path/to/save/directory/downloaded_file.txt'
 
-    download_file_from_github(github_url, save_path)
+    downloadPersistFiles(github_url, save_path)
 
-
+#End
 #Run ZenlessZoneZero when exiting script
 
 def runZZZ():
