@@ -1,92 +1,151 @@
 import os
-import requests
-from datetime import datetime
-import atexit
 import subprocess
+from googleapiclient.discovery import build, service_account
+from google.oauth2.credentials import Credentials
+import io
+from googleapiclient.http import MediaIoBaseDownload
+import json
+
 
 #Getting ZZZ Directory
+gameDir = os.path.dirname(__file__)
+ZZZ = 'ZenlessZoneZero.exe'
+gamePath = os.path.join(gameDir, ZZZ)
+persistFolder = os.path.join(gameDir, r'ZenlessZoneZero_Data\Persistent')
 
-# Get the directory path of the current script
-script_dir = os.path.dirname(__file__)
-
-# Specify the filename you want to access (example: 'example.txt')
-filename = 'ZenlessZoneZero.exe'
-
-# Construct the full path to the file
-file_path = os.path.join(script_dir, filename)
-
-# Check if the file exists before accessing it
-if os.path.exists(file_path):
-    # Open the file and read its contents (example: read mode 'r')
-    with open(file_path, 'r') as file:
-        file_contents = file.read()
-        print(f"Contents of '{filename}':\n{file_contents}")
-else:
-    print(f"File '{filename}' not found in directory: {script_dir}")
-
-#End
 #Checking if there's a remote file
-
-def checkRemote(RemoteFile, directory):
+def check_word_in_filenames(word_to_check, directory):
     found_filenames = []
     for filename in os.listdir(directory):
-        if os.path.isfile(os.path.join(directory, filename)):
+        if os.path.isfile(os.path.join(directory, filename)):  # Check if it's a file
             if word_to_check.lower() in filename.lower():
                 found_filenames.append(filename)
     return found_filenames
 
-# Example usage:
+
 if __name__ == "__main__":
-    directory_path = '/path/to/your/directory'  # Replace with your directory path
-    RemoteFile = "Remote"  # Change this to the word you want to check
-    
-    found_files = checkRemote(RemoteFile, directory_path)
-    
-    if found_files:
-        print(f"Files containing '{RemoteFile}' in {directory_path}:")
-        for filename in found_files:
-            print(filename)
-    else:
-        print(f"No files found containing '{RemoteFile}' in {directory_path}.")
-
+    word_to_check = "remote"  # Change this to the word you want to check
+    found_files = check_word_in_filenames(word_to_check, persistFolder)
 #End
-#Download from Github
+#Find the specific remote files
+dataFound = False
+audioFound = False
+resFound = False
+silenceFound = False
 
-def downloadPersistFiles(url, save_path):
-    response = requests.get(url)
-    if response.status_code == 200:
-        # Check if local file exists and get its last modified timestamp
-        file_exists = os.path.exists(save_path)
-        local_last_modified = os.path.getmtime(save_path) if file_exists else 0
+reskeyword = "res_version_remote"
+datakeyword = "data_version_remote"
+audiokeyword = "audio_version_remote"
+silencekeyword = "silence_version_remote"
+
+# Check if the keyword is in any of the filenames
+for filename in found_files:
+    for keyword in [reskeyword, datakeyword, audiokeyword, silencekeyword]:
+        if keyword in filename:
+            if keyword == reskeyword:
+                resFound = True
+            elif keyword == datakeyword:
+                dataFound = True
+            elif keyword == audiokeyword:
+                audioFound = True
+            elif keyword == silencekeyword:
+                silenceFound = True
+
+# Print the boolean flags to verify
+print("resFound:", resFound)
+print("dataFound:", dataFound)
+print("audioFound:", audioFound)
+print("silenceFound:", silenceFound)
+
+# Example string variable
+dataRemote = ["data_revision", "data_version_persist"]
+audioRemote = ["audio_revision", "audio_version_persist"]
+resRemote = ["res_revision", "res_version_persist"]
+silenceRemote = ["silence_revision", "silence_version_persist"]
+
+# Initialize RemoteFiles as an empty list
+persistFiles = []
+
+# Check if the boolean condition is true
+if dataFound:
+    persistFiles.extend(dataRemote)
+    data_path = os.path.join(persistFolder, datakeyword)
+    os.remove(data_path)
+    print(f'Deleted: {datakeyword}')
+if audioFound:
+    persistFiles.extend(audioRemote)
+    audio_path = os.path.join(persistFolder, audiokeyword)
+    os.remove(audio_path)
+    print(f'Deleted: {audiokeyword}')
+if resFound:
+    persistFiles.extend(resRemote)
+    res_path = os.path.join(persistFolder, reskeyword)
+    os.remove(res_path)
+    print(f'Deleted: {reskeyword}')
+if silenceFound:
+    persistFiles.extend(silenceRemote)
+    silence_path = os.path.join(persistFolder, silencekeyword)
+    os.remove(silence_path)
+    print(f'Deleted: {silencekeyword}')
+
+# Print RemoteFiles to see the result
+print(persistFiles)
+#End
+#Download from GDrive
+# Path to the service account key file
+service_account_file = r'D:\Games\ripzzz-429515-fd3104418c05.json'
+
+# Initialize the Drive API
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+credentials = service_account.Credentials.from_service_account_file(
+    service_account_file, scopes=SCOPES)
+service = build('drive', 'v3', credentials=credentials)
+
+def downloadPersist(folder_id, file_names, destination_folder):
+    try:
+        # List files in the folder
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields='files(id, name)'
+        ).execute()
         
-        # Parse GitHub's last modified timestamp
-        github_last_modified_str = response.headers.get('Last-Modified')
-        github_last_modified = datetime.strptime(github_last_modified_str, '%a, %d %b %Y %H:%M:%S %Z') if github_last_modified_str else None
+        files = results.get('files', [])
         
-        # Compare timestamps and download if GitHub version is newer
-        if not file_exists or (github_last_modified and github_last_modified.timestamp() > local_last_modified):
-            with open(save_path, 'wb') as f:
-                f.write(response.content)
-            print(f"File downloaded successfully: {save_path}")
+        if not files:
+            print('No files found.')
         else:
-            print(f"File '{save_path}' is already up to date.")
-    else:
-        print(f"Failed to download file, status code: {response.status_code}")
+            print('Files:')
+            for file in files:
+                file_id = file.get('id')
+                file_name = file.get('name')
+                if file_name in file_names:
+                    print(f'Downloading {file_name}...')
+                    
+                    # Download the file
+                    request = service.files().get_media(fileId=file_id)
+                    fh = io.FileIO(f'{destination_folder}/{file_name}', 'wb')
+                    downloader = MediaIoBaseDownload(fh, request)
+                    done = False
+                    while not done:
+                        status, done = downloader.next_chunk()
+                    
+                    print(f'{file_name} downloaded successfully.')
+    
+    except Exception as e:
+        print(f'An error occurred: {e}')
 
-# Example usage:
-if __name__ == "__main__":
-    github_url = 'https://raw.githubusercontent.com/username/repository/branch/path/to/file'
-    save_path = '/path/to/save/directory/downloaded_file.txt'
-
-    downloadPersistFiles(github_url, save_path)
-
+folder_id = '1MxQlcIX0EdOSUQKfslxIAMcWJS7GEgUK'
+file_names_to_download = persistFiles  # Specify the filenames you want to download
+destination_folder = persistFolder
 #End
-#Run ZenlessZoneZero when exiting script
 
+
+#RunZZZ
 def runZZZ():
-    # Replace with the command or application you want to run
-    subprocess.run([file_path])  # Example command to run an application
+    subprocess.run([gamePath])
+#End
+#calls
 
-# Registering the function to run before exit
-atexit.register(runZZZ)
-
+downloadPersist(folder_id, file_names_to_download, destination_folder)
+runZZZ()
